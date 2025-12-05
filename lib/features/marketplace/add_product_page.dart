@@ -47,23 +47,25 @@ class _AddProductPageState extends ConsumerState<AddProductPage>
             _remarksController.text = widget.productToEdit!.description;
             _existingImageUrl = widget.productToEdit!.imageUrl;
 
-            WidgetsBinding.instance.addPostFrameCallback((_)
-                {
-                    if (!mounted) return;
-                    _preselectDropdowns();
-                }
-            );
+            // WidgetsBinding.instance.addPostFrameCallback((_)
+            //     {
+            //         if (!mounted) return;
+            //         _preselectDropdowns();
+            //     }
+            // );
         }
     }
 
     void _preselectDropdowns()
     {
         final categories = ref.read(productCategoriesProvider).asData?.value;
-        if (categories != null)
+        if (categories != null && categories.isNotEmpty)
         {
             try
             {
-                final categoryToSelect = categories.firstWhere((c) => c.id == widget.productToEdit!.categoryId);
+                final categoryToSelect = categories.firstWhere((c) => c.id == widget.productToEdit!.categoryId,
+                orElse: () => categories.first,
+                );
                 setState(() => _selectedCategory = categoryToSelect);
             }
             catch (e)
@@ -72,11 +74,12 @@ class _AddProductPageState extends ConsumerState<AddProductPage>
             }
         }
         final units = ref.read(unitsProvider).asData?.value;
-        if (units != null)
+        if (units != null && units.isNotEmpty)
         {
             try
             {
-                final unitToSelect = units.firstWhere((u) => u.id == widget.productToEdit!.unitId);
+                final unitToSelect = units.firstWhere((u) => u.id == widget.productToEdit!.unitId,
+                orElse: () => units.first);
                 setState(() => _selectedUnit = unitToSelect);
             }
             catch (e)
@@ -192,6 +195,43 @@ class _AddProductPageState extends ConsumerState<AddProductPage>
             }
         );
 
+
+
+
+        // Add this after your existing productSubmitProvider listener
+        ref.listen<AsyncValue<List<BusinessCategory>>>(productCategoriesProvider, (previous, next) {
+            if (isEditMode && next.hasValue && _selectedCategory == null) {
+                final categories = next.value!;
+                try {
+                    final categoryToSelect = categories.firstWhere(
+                            (c) => c.id == widget.productToEdit!.categoryId,
+                    );
+                    setState(() => _selectedCategory = categoryToSelect);
+                } catch (e) {
+                    print("Error finding category: ${widget.productToEdit!.categoryId}");
+                }
+            }
+        });
+
+        ref.listen<AsyncValue<List<Unit>>>(unitsProvider, (previous, next) {
+            if (isEditMode && next.hasValue && _selectedUnit == null) {
+                final units = next.value!;
+                try {
+                    final unitToSelect = units.firstWhere(
+                            (u) => u.id == widget.productToEdit!.unitId,
+                    );
+                    setState(() => _selectedUnit = unitToSelect);
+                } catch (e) {
+                    print("Error finding unit: ${widget.productToEdit!.unitId}");
+                }
+            }
+        });
+
+
+
+
+
+
         return Scaffold(
             backgroundColor: Colors.grey.shade100,
             appBar: CommonAppBar(
@@ -220,16 +260,16 @@ class _AddProductPageState extends ConsumerState<AddProductPage>
                             data: (categories) => _buildCategoryDropdown(l10n, categories),
                         ),
                         const SizedBox(height: 24),
-                        _buildFileUploadField(
-                            label: l10n.uploadProductCatalogs,
-                            hint: l10n.clickToUploadCatalogs,
-                            onTap: ()
-                            {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Catalog upload is not yet supported.')),
-                                );
-                            }
-                        ),
+                        // _buildFileUploadField(
+                        //     label: l10n.uploadProductCatalogs,
+                        //     hint: l10n.clickToUploadCatalogs,
+                        //     onTap: ()
+                        //     {
+                        //         ScaffoldMessenger.of(context).showSnackBar(
+                        //             const SnackBar(content: Text('Catalog upload is not yet supported.')),
+                        //         );
+                        //     }
+                        // ),
                         const SizedBox(height: 24),
                         _buildImagePickerField(label: l10n.uploadProductImages, hint: l10n.clickToUploadImages),
                         const SizedBox(height: 24),
@@ -262,6 +302,17 @@ class _AddProductPageState extends ConsumerState<AddProductPage>
                             icon: Image.asset('assets/logos/Order.png', width: 20, height: 20, color: Colors.white),
                             onPressed: _submitProduct,
                         ),
+                        const SizedBox(height: 28),
+                        PrimaryButton(
+                            text: submitState.value == ProductSubmitStateValue.loading
+                                ? (isEditMode ? "Updating..." : "Adding...")
+                                : (isEditMode ? "Update Product" : l10n.addProduct),
+                            isLoading: submitState.value == ProductSubmitStateValue.loading,
+                            icon: Image.asset('assets/logos/Order.png', width: 20, height: 20, color: Colors.white),
+                            onPressed: _submitProduct,
+                        )
+
+
                     ],
                 ),
             ),
@@ -435,3 +486,5 @@ class _AddProductPageState extends ConsumerState<AddProductPage>
         );
     }
 }
+
+
